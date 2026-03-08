@@ -13,7 +13,7 @@ from faker import Faker
 
 TOTAL_ROWS = 10_000_000
 CHUNK_SIZE = 100_000
-OUTPUT_DIR = Path(__file__).parent / "test_data"
+OUTPUT_DIR = Path(__file__).parent.parent / "test_data"
 OUTPUT_PATH = OUTPUT_DIR / "synthetic_base_10m.parquet"
 
 # (locale, ISO 3166-1 alpha-2, weight) — roughly US 40%, EMEA 35%, APAC 25%

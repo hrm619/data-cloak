@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from anonymize import anonymize_dataframe
+from data_cloak.anonymize import anonymize_dataframe
 
 CONFIG = {"name": "name", "email": "email", "country": "country"}
 

@@ -21,8 +21,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-INPUT_PATH = Path(__file__).parent / "test_data" / "synthetic_base_10m.parquet"
-OUTPUT_PATH = Path(__file__).parent / "test_data" / "synthetic_messy_10m.parquet"
+INPUT_PATH = Path(__file__).parent.parent / "test_data" / "synthetic_base_10m.parquet"
+OUTPUT_PATH = Path(__file__).parent.parent / "test_data" / "synthetic_messy_10m.parquet"
 
 DIACRITIC_NAMES = [
     "José María", "François Dupont", "Müller Hans", "Søren Kierkegaard",

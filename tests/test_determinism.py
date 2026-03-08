@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from anonymize import anonymize_dataframe, anonymize_value
+from data_cloak.anonymize import anonymize_dataframe, anonymize_value
 
 
 def test_single_value_is_deterministic():

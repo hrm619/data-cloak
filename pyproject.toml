@@ -1,17 +1,27 @@
 [project]
 name = "data-cloak"
 version = "0.1.0"
-description = "Add your description here"
+description = "Deterministic PII anonymization for CSV files"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "pandas>=3.0.1",
+    "pyarrow>=15.0.0",
 ]
 
 [dependency-groups]
 dev = [
     "faker>=40.8.0",
-    "pyarrow>=23.0.1",
     "pytest>=9.0.2",
     "pytest-html>=4.2.0",
 ]
+
+[project.scripts]
+data-cloak = "data_cloak.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/data_cloak"]

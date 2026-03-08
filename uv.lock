@@ -22,26 +22,28 @@ wheels = [
 [[package]]
 name = "data-cloak"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "pandas" },
+    { name = "pyarrow" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "faker" },
-    { name = "pyarrow" },
     { name = "pytest" },
     { name = "pytest-html" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pandas", specifier = ">=3.0.1" }]
+requires-dist = [
+    { name = "pandas", specifier = ">=3.0.1" },
+    { name = "pyarrow", specifier = ">=15.0.0" },
+]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "faker", specifier = ">=40.8.0" },
-    { name = "pyarrow", specifier = ">=23.0.1" },
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "pytest-html", specifier = ">=4.2.0" },
 ]

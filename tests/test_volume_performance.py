@@ -11,10 +11,10 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from anonymize import anonymize_dataframe
+from data_cloak.anonymize import anonymize_dataframe
 
-MESSY_PARQUET = Path(__file__).parent / "test_data" / "synthetic_messy_10m.parquet"
-ANON_PARQUET = Path(__file__).parent / "test_data" / "synthetic_messy_10m_ANON.parquet"
+MESSY_PARQUET = Path(__file__).parent.parent / "test_data" / "synthetic_messy_10m.parquet"
+ANON_PARQUET = Path(__file__).parent.parent / "test_data" / "synthetic_messy_10m_ANON.parquet"
 CONFIG = {"name": "name", "email": "email", "country": "country"}
 
 requires_test_data = pytest.mark.skipif(

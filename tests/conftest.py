@@ -1,16 +1,9 @@
 """Shared pytest fixtures for data-cloak tests."""
 
-import sys
 from pathlib import Path
 
 import pandas as pd
 import pytest
-
-# Make the worktree root importable when running pytest from this directory
-sys.path.insert(0, str(Path(__file__).parent))
-
-TEST_DATA_DIR = Path(__file__).parent / "test_data"
-MESSY_PARQUET = TEST_DATA_DIR / "synthetic_messy_10m.parquet"
 
 CONFIG = {"name": "name", "email": "email", "country": "country"}
 

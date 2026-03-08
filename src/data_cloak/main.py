@@ -1,9 +1,9 @@
 import argparse
 from pathlib import Path
 
-from config import load_config
-from data_io import read_csv, anon_path, write_csv
-from anonymize import anonymize_dataframe
+from data_cloak.config import load_config
+from data_cloak.data_io import read_csv, anon_path, write_csv
+from data_cloak.anonymize import anonymize_dataframe
 
 
 def main():

@@ -11,3 +11,6 @@ wheels/
 
 # Generated test data
 test_data/
+
+# Claude Code worktrees
+.claude/

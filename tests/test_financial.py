@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from anonymize import (
+from data_cloak.anonymize import (
     anonymize_amount,
     anonymize_dataframe,
     anonymize_date,
