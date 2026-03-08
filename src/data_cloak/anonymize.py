@@ -281,5 +281,7 @@ def anonymize_dataframe(df, config, filename=None):
                 kwargs["offset"] = offset
             elif field_config == "amount":
                 kwargs["multiplier"] = multiplier
+            elif field_config == "description":
+                kwargs["category"] = "Default"
             result[col] = anonymize_column(result[col], field_config, **kwargs)
     return result

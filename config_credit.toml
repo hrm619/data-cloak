@@ -1,0 +1,5 @@
+[columns]
+"Transaction Date" = "date"
+"Post Date" = "date"
+"Amount" = "amount"
+"Description" = {type = "description", category_column = "Category"}

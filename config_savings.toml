@@ -1,0 +1,4 @@
+[columns]
+"Posting Date" = "date"
+"Amount" = "amount"
+"Description" = "description"

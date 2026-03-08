@@ -12,7 +12,7 @@ def read_csv(path: str | Path) -> pd.DataFrame:
     Returns:
         DataFrame containing the CSV contents.
     """
-    return pd.read_csv(path)
+    return pd.read_csv(path, encoding_errors="replace", encoding="utf-8-sig", index_col=False)
 
 
 def anon_path(path: str | Path) -> Path:
