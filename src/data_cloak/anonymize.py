@@ -208,6 +208,14 @@ def anonymize_value(value: str, field_type: str, **kwargs) -> str:
     raise ValueError(f"Unsupported field_type: {field_type!r}")
 
 
+def _safe_anonymize_value(value, field_type, **kwargs):
+    """Attempt to anonymize a value, returning it unchanged on failure."""
+    try:
+        return anonymize_value(value, field_type, **kwargs)
+    except (ValueError, TypeError):
+        return value
+
+
 def anonymize_column(column, field_type, **kwargs):
     """Return a new Series with every value anonymized by field_type.
 
@@ -218,11 +226,10 @@ def anonymize_column(column, field_type, **kwargs):
 
     Returns:
         A new Series with each value replaced by its anonymized equivalent.
-
-    Raises:
-        ValueError: if field_type is not supported.
+        Values that cannot be converted for the given field_type pass through
+        unchanged.
     """
-    return column.map(lambda x: anonymize_value(x, field_type, **kwargs) if pd.notna(x) else x)
+    return column.map(lambda x: _safe_anonymize_value(x, field_type, **kwargs) if pd.notna(x) else x)
 
 
 def anonymize_description_column(description_col, category_col):
