@@ -33,6 +33,13 @@ _COUNTRIES = [
     "Ukraine", "United Kingdom", "United States", "Vietnam", "Zimbabwe",
 ]
 
+_CATEGORIES = [
+    "Alpha", "Beta", "Gamma", "Delta", "Epsilon",
+    "Zeta", "Eta", "Theta", "Iota", "Kappa",
+    "Lambda", "Mu", "Nu", "Xi", "Omicron",
+    "Pi", "Rho", "Sigma", "Tau", "Upsilon",
+]
+
 _DESCRIPTIONS = {
     "Travel": [
         "Sky Airways Int'l", "Horizon Hotels Group", "Metro Transit Authority",
@@ -164,6 +171,18 @@ def anonymize_description(value: str, category: str) -> str:
     return pool[_md5_index(value, len(pool))]
 
 
+def anonymize_category(value: str) -> str:
+    """Replace a categorical value with a deterministic fake label.
+
+    Args:
+        value: Original category string (e.g. "small", "M", "High").
+
+    Returns:
+        A fake category label from the _CATEGORIES pool.
+    """
+    return _CATEGORIES[_md5_index(value, len(_CATEGORIES))]
+
+
 def anonymize_value(value: str, field_type: str, **kwargs) -> str:
     """Return a deterministic fake replacement for a single PII value.
 
@@ -172,7 +191,7 @@ def anonymize_value(value: str, field_type: str, **kwargs) -> str:
 
     Args:
         value: The original PII string to anonymize.
-        field_type: One of "name", "email", "country", "date", "amount", or "description".
+        field_type: One of "name", "email", "country", "date", "amount", "description", or "category".
         **kwargs: Additional parameters for specific field types:
             offset (int): Required for "date" — days to shift forward.
             multiplier (float): Required for "amount" — scaling factor.
@@ -204,6 +223,9 @@ def anonymize_value(value: str, field_type: str, **kwargs) -> str:
 
     if field_type == "description":
         return anonymize_description(value, kwargs["category"])
+
+    if field_type == "category":
+        return anonymize_category(value)
 
     raise ValueError(f"Unsupported field_type: {field_type!r}")
 

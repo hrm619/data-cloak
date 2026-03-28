@@ -8,7 +8,7 @@ import pandas as pd
 _OLLAMA_URL = "http://localhost:11434/api/generate"
 _TIMEOUT = 30
 _MAX_SAMPLE = 50
-_VALID_TYPES = {"name", "email", "country", "date", "amount", "description", "id"}
+_VALID_TYPES = {"name", "email", "country", "date", "amount", "description", "id", "category"}
 
 _CLASSIFIER_PROMPT = """You are a data classification assistant. Classify the following CSV column into exactly one type.
 
@@ -23,6 +23,7 @@ Supported types and what they mean:
 - amount: numeric monetary values, possibly negative (e.g. "1204.50", "-89.00")
 - description: transaction descriptions, merchant names, or business names — these often contain store names, numbers, symbols, or codes (e.g. "Starbucks #4821", "AMZN*Marketplace", "UBER TRIP 1234", "WAL-MART #5012")
 - id: identifiers, codes, or reference numbers (e.g. "ACC-00192", "TXN-78432", "123-45-6789")
+- category: categorical or ordinal labels with a small set of repeating values (e.g. "Small", "Medium", "Large", "S", "M", "L", "High", "Low", "Yes", "No")
 
 CRITICAL RULES:
 1. Classify based on the ACTUAL VALUES, not the column header. The header may be generic (e.g. "field_1") or misleading.
