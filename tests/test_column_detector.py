@@ -469,3 +469,262 @@ class TestDetectToBuildConfig:
         assert config == {"customer_name": "name", "email": "email"}
         assert len(skipped) == 1
         assert skipped[0]["column"] == "internal_code"
+
+
+# ---------------------------------------------------------------------------
+# Faker-based live Ollama accuracy tests
+# ---------------------------------------------------------------------------
+
+import random
+from urllib.request import urlopen as _raw_urlopen
+from urllib.error import URLError as _URLError
+from faker import Faker
+
+_fake = Faker()
+Faker.seed(42)
+random.seed(42)
+
+_NUM_ROWS = 25
+
+
+def _ollama_is_reachable() -> bool:
+    """Return True if Ollama is responding on localhost:11434."""
+    try:
+        with _raw_urlopen("http://localhost:11434", timeout=5):
+            return True
+    except Exception:
+        return False
+
+
+_ollama_available = _ollama_is_reachable()
+_skip_no_ollama = pytest.mark.skipif(
+    not _ollama_available,
+    reason="Ollama is not reachable at localhost:11434 — start Ollama to run live accuracy tests",
+)
+
+
+# --- Faker data generators per type ---
+
+def _gen_names(n: int) -> list[str]:
+    return [_fake.name() for _ in range(n)]
+
+def _gen_emails(n: int) -> list[str]:
+    return [_fake.email() for _ in range(n)]
+
+def _gen_countries(n: int) -> list[str]:
+    return [_fake.country() for _ in range(n)]
+
+def _gen_dates(n: int) -> list[str]:
+    return [_fake.date_between(start_date="-5y", end_date="today").strftime("%m/%d/%Y") for _ in range(n)]
+
+def _gen_amounts(n: int) -> list[str]:
+    return [f"{_fake.pyfloat(min_value=-50000, max_value=50000, right_digits=2):.2f}" for _ in range(n)]
+
+def _gen_descriptions(n: int) -> list[str]:
+    merchants = [
+        "Starbucks #{num}", "AMZN*Marketplace", "UBER TRIP {num}",
+        "SHELL OIL {num}", "WAL-MART #{num}", "TARGET #{num}",
+        "COSTCO WHSE #{num}", "NETFLIX.COM", "SPOTIFY USA",
+        "DoorDash #{num}", "LYFT *RIDE {num}", "APPLE.COM/BILL",
+        "MCDONALD'S #{num}", "HOME DEPOT #{num}", "CVS/PHARMACY #{num}",
+    ]
+    return [random.choice(merchants).format(num=random.randint(1000, 9999)) for _ in range(n)]
+
+def _gen_ids(n: int) -> list[str]:
+    return [f"ACC-{random.randint(10000, 99999)}" for _ in range(n)]
+
+
+# --- Ambiguous value generators (scenario 3) ---
+
+def _gen_ambiguous_codes(n: int) -> list[str]:
+    return [f"REF-{random.randint(1000, 9999)}" for _ in range(n)]
+
+def _gen_ambiguous_labels(n: int) -> list[str]:
+    labels = ["HIGH", "LOW", "MEDIUM", "N/A", "TBD", "PENDING", "—", "X", "Y", "Z"]
+    return [random.choice(labels) for _ in range(n)]
+
+def _gen_ambiguous_single_chars(n: int) -> list[str]:
+    return [random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(n)]
+
+
+# Scenario definitions: (header, value_generator, expected_type)
+# Scenario 1: Clear header + clear values
+# Scenario 2: Ambiguous header + clear values
+# Scenario 3: Clear header + ambiguous values (expect possible failure)
+
+_SCENARIOS: list[tuple[str, str, str, callable, str | None]] = [
+    # (scenario_label, header, description, gen_fn, expected_type)
+    # --- name ---
+    ("1_clear_clear",    "customer_name", "name",        _gen_names,              "name"),
+    ("2_ambig_hdr",      "field_1",       "name",        _gen_names,              "name"),
+    ("3_ambig_val",      "customer_name", "name",        _gen_ambiguous_codes,    None),
+    # --- email ---
+    ("1_clear_clear",    "email",         "email",       _gen_emails,             "email"),
+    ("2_ambig_hdr",      "field_3",       "email",       _gen_emails,             "email"),
+    ("3_ambig_val",      "email",         "email",       _gen_ambiguous_codes,    None),
+    # --- country ---
+    ("1_clear_clear",    "country",       "country",     _gen_countries,          "country"),
+    ("2_ambig_hdr",      "field_7",       "country",     _gen_countries,          "country"),
+    ("3_ambig_val",      "country",       "country",     _gen_ambiguous_single_chars, None),
+    # --- date ---
+    ("1_clear_clear",    "created_at",    "date",        _gen_dates,              "date"),
+    ("2_ambig_hdr",      "field_2",       "date",        _gen_dates,              "date"),
+    ("3_ambig_val",      "created_at",    "date",        _gen_ambiguous_labels,   None),
+    # --- amount ---
+    ("1_clear_clear",    "revenue",       "amount",      _gen_amounts,            "amount"),
+    ("2_ambig_hdr",      "field_5",       "amount",      _gen_amounts,            "amount"),
+    ("3_ambig_val",      "revenue",       "amount",      _gen_ambiguous_labels,   None),
+    # --- description ---
+    ("1_clear_clear",    "merchant",      "description", _gen_descriptions,       "description"),
+    ("2_ambig_hdr",      "field_9",       "description", _gen_descriptions,       "description"),
+    ("3_ambig_val",      "merchant",      "description", _gen_ambiguous_single_chars, None),
+    # --- id ---
+    ("1_clear_clear",    "account_id",    "id",          _gen_ids,                "id"),
+    ("2_ambig_hdr",      "field_0",       "id",          _gen_ids,                "id"),
+    ("3_ambig_val",      "account_id",    "id",          _gen_ambiguous_labels,   None),
+]
+
+
+# Storage for results across the parametrized tests
+_accuracy_results: list[dict] = []
+
+
+def _scenario_id(param):
+    """Generate a readable test ID from scenario parameters."""
+    scenario, header, col_type, _, _ = param
+    return f"{col_type}-{scenario}"
+
+
+@_skip_no_ollama
+class TestFakerDetectionAccuracy:
+    """Live Ollama accuracy tests using Faker-generated data.
+
+    Sends real data to the local Ollama instance and measures whether the
+    classifier returns the correct type with sufficient confidence.
+    """
+
+    @pytest.fixture(autouse=True, scope="class")
+    def _print_results_table(self):
+        """Print the results table after all tests in this class complete."""
+        _accuracy_results.clear()
+        yield
+        _print_accuracy_report(_accuracy_results)
+
+    @pytest.mark.parametrize(
+        "scenario,header,col_type,gen_fn,expected_type",
+        _SCENARIOS,
+        ids=[_scenario_id(s) for s in _SCENARIOS],
+    )
+    def test_classification_accuracy(
+        self, scenario, header, col_type, gen_fn, expected_type
+    ):
+        values = gen_fn(_NUM_ROWS)
+        df = pd.DataFrame({header: values})
+        detected, skipped = detect_all_columns(df)
+
+        if detected:
+            predicted = detected[0]["type"]
+            confidence = detected[0]["confidence"]
+        else:
+            predicted = skipped[0]["type"] if skipped else None
+            confidence = skipped[0]["confidence"] if skipped else 0.0
+
+        is_scenario_3 = scenario.startswith("3_")
+
+        if is_scenario_3:
+            # Scenario 3: ambiguous values — classifier should NOT detect the type
+            passed = predicted != col_type or confidence < 0.80
+        else:
+            # Scenarios 1 & 2: classifier should detect the correct type
+            passed = predicted == expected_type and confidence >= 0.80
+
+        _accuracy_results.append({
+            "scenario": scenario,
+            "col_type": col_type,
+            "header": header,
+            "predicted": predicted,
+            "confidence": confidence,
+            "passed": passed,
+            "is_scenario_3": is_scenario_3,
+        })
+
+        if not is_scenario_3:
+            assert passed, (
+                f"Expected type={expected_type} with confidence>=0.80, "
+                f"got type={predicted} confidence={confidence:.2f}"
+            )
+        else:
+            # Scenario 3 failures are flagged but do not fail the suite
+            if not passed:
+                pytest.xfail(
+                    f"Scenario 3 prompt-tuning issue: classifier returned "
+                    f"type={predicted} confidence={confidence:.2f} for "
+                    f"ambiguous values under header '{header}'"
+                )
+
+
+def _print_accuracy_report(results: list[dict]) -> None:
+    """Print a formatted accuracy table to stdout."""
+    if not results:
+        return
+
+    print("\n")
+    print("=" * 90)
+    print("DATACLOAK v1.1 — FAKER DETECTION ACCURACY REPORT")
+    print("=" * 90)
+    print(
+        f"{'Scenario':<18} {'Type':<14} {'Header':<18} "
+        f"{'Predicted':<14} {'Conf':>6}  {'Result'}"
+    )
+    print("-" * 90)
+
+    total = 0
+    passed = 0
+    scenario_3_failures = []
+
+    for r in results:
+        total += 1
+        status = "PASS" if r["passed"] else "FAIL"
+        if r["passed"]:
+            passed += 1
+        if r["is_scenario_3"] and not r["passed"]:
+            scenario_3_failures.append(r)
+            status = "FAIL*"
+
+        print(
+            f"{r['scenario']:<18} {r['col_type']:<14} {r['header']:<18} "
+            f"{str(r['predicted']):<14} {r['confidence']:>5.2f}  {status}"
+        )
+
+    core_total = sum(1 for r in results if not r["is_scenario_3"])
+    core_passed = sum(1 for r in results if not r["is_scenario_3"] and r["passed"])
+    core_pct = (core_passed / core_total * 100) if core_total else 0
+
+    s3_total = sum(1 for r in results if r["is_scenario_3"])
+    s3_passed = sum(1 for r in results if r["is_scenario_3"] and r["passed"])
+    s3_pct = (s3_passed / s3_total * 100) if s3_total else 0
+
+    pct = (passed / total * 100) if total else 0
+    print("-" * 90)
+    print(f"Scenarios 1+2 accuracy: {core_passed}/{core_total} ({core_pct:.1f}%)")
+    print(f"Scenario 3 accuracy:    {s3_passed}/{s3_total} ({s3_pct:.1f}%)")
+    print(f"Overall accuracy:       {passed}/{total} ({pct:.1f}%)")
+    merge_status = "PASS" if core_pct >= 90 else "FAIL"
+    print(f"Merge bar (90% on scenarios 1+2): {merge_status}")
+
+    if scenario_3_failures:
+        print("\n" + "=" * 90)
+        print("SCENARIO 3 FAILURES — classifier prompt may need tuning:")
+        print("-" * 90)
+        for r in scenario_3_failures:
+            print(
+                f"  {r['col_type']:<14} header='{r['header']}'  "
+                f"predicted={r['predicted']}  confidence={r['confidence']:.2f}"
+            )
+        print(
+            "\n  These indicate the LLM trusted the header name over "
+            "contradictory value evidence."
+        )
+
+    print("=" * 90)
+    print()

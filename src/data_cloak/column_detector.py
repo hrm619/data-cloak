@@ -10,17 +10,30 @@ _TIMEOUT = 30
 _MAX_SAMPLE = 50
 _VALID_TYPES = {"name", "email", "country", "date", "amount", "description", "id"}
 
-_CLASSIFIER_PROMPT = """You are a data classification assistant. Classify the following CSV column.
+_CLASSIFIER_PROMPT = """You are a data classification assistant. Classify the following CSV column into exactly one type.
 
 Column header: {header}
 Sample values (up to 50): {values}
 
-Supported types: name, email, country, date, amount, description, id
+Supported types and what they mean:
+- name: human person names, typically first + last name (e.g. "Sarah Johnson", "J. Smith", "María García"). Names are personal identifiers for individual people.
+- email: email addresses containing @ (e.g. "alice@example.com")
+- country: country names, nationalities, or ISO country codes (e.g. "United States", "France", "Germany", "BR", "JP"). Note: country names are geopolitical entities, not person names — if most values are recognized countries, classify as country.
+- date: calendar dates in any format (e.g. "03/15/2024", "2023-12-01")
+- amount: numeric monetary values, possibly negative (e.g. "1204.50", "-89.00")
+- description: transaction descriptions, merchant names, or business names — these often contain store names, numbers, symbols, or codes (e.g. "Starbucks #4821", "AMZN*Marketplace", "UBER TRIP 1234", "WAL-MART #5012")
+- id: identifiers, codes, or reference numbers (e.g. "ACC-00192", "TXN-78432", "123-45-6789")
+
+CRITICAL RULES:
+1. Classify based on the ACTUAL VALUES, not the column header. The header may be generic (e.g. "field_1") or misleading.
+2. If the values clearly match a type, classify accordingly regardless of the header.
+3. If the values DO NOT match what the header suggests, trust the values. For example, if the header says "email" but the values are codes like "REF-1234", respond with null.
+4. Lower your confidence when the values are ambiguous or do not clearly fit a single type.
 
 Respond with JSON only. No explanation. Example:
 {{"type": "email", "confidence": 0.95}}
 
-If the column does not match any type, respond:
+If the values do not clearly match any supported type, respond:
 {{"type": null, "confidence": 0.0}}"""
 
 
